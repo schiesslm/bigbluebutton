@@ -49,4 +49,6 @@ export default withModalMounter(withTracker(({ mountModal }) => ({
   changeProfile: profileId => Service.changeProfile(profileId),
   hasMediaDevices: deviceInfo.hasMediaDevices,
   hasVideoStream: VideoService.hasVideoStream(),
+  changeVirtualBackground: backgroundName => Service.changeVirtualBackground(backgroundName),
+  virtualBackgroundName: Service.virtualBackgroundName(),
 }))(VideoPreviewContainer));

@@ -11,6 +11,8 @@ import cx from 'classnames';
 import Service from './service';
 import VideoService from '../video-provider/service';
 import { styles } from './styles';
+import {Meteor} from "meteor/meteor";
+import { createVirtualBackgroundService } from '../../services/virtual-background';
 
 const CAMERA_PROFILES = Meteor.settings.public.kurento.cameraProfiles;
 const GUM_TIMEOUT = Meteor.settings.public.kurento.gUMTimeout;
@@ -33,18 +35,25 @@ const propTypes = {
   hasVideoStream: PropTypes.bool.isRequired,
   webcamDeviceId: PropTypes.string,
   sharedDevices: PropTypes.arrayOf(PropTypes.string),
+  virtualBackgroundName: PropTypes.string,
+  changeVirtualBackground: PropTypes.func.isRequired,
 };
 
 const defaultProps = {
   resolve: null,
   webcamDeviceId: null,
   sharedDevices: [],
+  virtualBackgroundName: null,
 };
 
 const intlMessages = defineMessages({
   webcamSettingsTitle: {
     id: 'app.videoPreview.webcamSettingsTitle',
     description: 'Title for the video preview modal',
+  },
+  virtualBackgroundSettingsLabel: {
+    id: 'app.videoPreview.webcamVirtualBackgroundLabel',
+    description: 'Label for the virtual background',
   },
   closeLabel: {
     id: 'app.videoPreview.closeLabel',
@@ -321,6 +330,24 @@ class VideoPreview extends Component {
     }
   }
 
+  handleSelectVirtualBackground(event) {
+    const backgroundName = event;
+    console.log("Setting virtual background to: " + backgroundName);
+    const virtualBackgroundService = createVirtualBackgroundService(this.deviceStream).then((res) => {
+      let effect = res.startEffect(this.deviceStream)
+      this.video.srcObject = effect;
+    }).finally(() => {
+      console.log(this.video);
+    })
+
+    const { changeVirtualBackground } = this.props;
+
+    this.setState({
+      virtualBackgroundName: backgroundName
+    });
+    changeVirtualBackground(backgroundName);
+  }
+
   handleSelectWebcam(event) {
     const webcamValue = event.target.value;
 
@@ -467,6 +494,7 @@ class VideoPreview extends Component {
       });
       this.video.srcObject = stream;
       this.deviceStream = stream;
+      console.log(this.video);
     }).catch((error) => {
       this.handlePreviewError('do_gum_preview', error, 'displaying final selection');
     });
@@ -628,6 +656,7 @@ class VideoPreview extends Component {
                   )
               }
             </div>
+            {this.renderVirtualBackgroundSelection()}
             {this.renderDeviceSelectors()}
           </div>
         );
@@ -702,6 +731,21 @@ class VideoPreview extends Component {
             />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  renderVirtualBackgroundSelection() {
+    const {
+      intl,
+    } = this.props;
+
+    return (
+      <div className={styles.actions}>
+        <Button
+          label={intl.formatMessage(intlMessages.virtualBackgroundSettingsLabel)}
+          onClick={() => this.handleSelectVirtualBackground('noBg')}
+        />
       </div>
     );
   }
