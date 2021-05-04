@@ -208,10 +208,26 @@ class VirtualBackgroundService {
      * @param {MediaStream} stream - Stream to be used for processing.
      * @returns {MediaStream} - The stream with the applied effect.
      */
-    startEffect(stream) {
+    startEffect(stream, constraints = null) {
         this._maskFrameTimerWorker = new Worker(timerWorkerScript, { name: 'Blur effect worker' });
         this._maskFrameTimerWorker.onmessage = this._onMaskFrameTimer;
-        const firstVideoTrack = stream.getVideoTracks()[0];
+
+        let firstVideoTrack = null;
+        if (stream == null && constraints != null) {
+            // firstVideoTrack = navigator.mediaDevices.getUserMedia(constraints).then((val) => {
+            //     console.log(val);
+            //     console.log(val.getTracks());
+            //     firstVideoTrack = val.getTracks()[0];
+            // }).catch((error) => {
+            //     console.error(error);
+            //     return;
+            // });
+        } else {
+            firstVideoTrack = stream.getVideoTracks()[0];
+        }
+
+        console.log(firstVideoTrack);
+
         const { height, frameRate, width }
             = firstVideoTrack.getSettings ? firstVideoTrack.getSettings() : firstVideoTrack.getConstraints();
 
@@ -268,8 +284,8 @@ export async function createVirtualBackgroundService() {
     const modelBufferOffset = tflite._getModelBufferMemoryOffset();
     const virtualBackground = {
         virtualSource: baseName + '/resources/images/virtual-backgrounds/architecture.jpg',
-        backgroundType: 'image',
-        isVirtualBackground: true
+        backgroundType: 'imagfe',
+        isVirtualBackground: false
     }
 
     if (!modelResponse.ok) {

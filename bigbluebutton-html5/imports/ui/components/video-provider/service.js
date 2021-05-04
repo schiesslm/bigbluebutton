@@ -20,6 +20,7 @@ import {
   getSortingMethod,
   sortVideoStreams,
 } from '/imports/ui/components/video-provider/stream-sorting';
+import { createVirtualBackgroundService } from '../../services/virtual-background';
 
 const CAMERA_PROFILES = Meteor.settings.public.kurento.cameraProfiles;
 const MULTIPLE_CAMERAS = Meteor.settings.public.app.enableMultipleCameras;
@@ -118,12 +119,7 @@ class VideoService {
     }
   }
 
-  joinVideo(deviceId, virtualBackgroundObject = {}) {
-
-    if (virtualBackgroundObject !== {}) {
-      // TODO: replace devicestream with the virtual background stream
-      console.log("joining with virtual background");
-    }
+  joinVideo(deviceId) {
     this.deviceId = deviceId;
     this.isConnecting = true;
     Storage.setItem('isFirstJoin', false);
@@ -799,6 +795,14 @@ class VideoService {
 
     return finalThreshold;
   }
+
+  getVirtualBackgroundInformation() {
+    return this.virtualBackgroundObject;
+  }
+
+  setVirtualBackgroundInformation(virtualBackgroundObject) {
+    this.virtualBackgroundObject = virtualBackgroundObject;
+  }
 }
 
 const videoService = new VideoService();
@@ -806,7 +810,7 @@ const videoService = new VideoService();
 export default {
   storeDeviceIds: () => videoService.storeDeviceIds(),
   exitVideo: () => videoService.exitVideo(),
-  joinVideo: (deviceId, virtualBackgroundObject) => videoService.joinVideo(deviceId, virtualBackgroundObject),
+  joinVideo: (deviceId) => videoService.joinVideo(deviceId),
   stopVideo: cameraId => videoService.stopVideo(cameraId),
   getVideoStreams: () => videoService.getVideoStreams(),
   getInfo: () => videoService.getInfo(),
@@ -840,4 +844,6 @@ export default {
   getNextVideoPage: () => videoService.getNextVideoPage(),
   getPageChangeDebounceTime: () => { return PAGE_CHANGE_DEBOUNCE_TIME },
   shouldRenderPaginationToggle: () => videoService.shouldRenderPaginationToggle(),
+  getVirtualBackgroundInformation: () => videoService.getVirtualBackgroundInformation(),
+  setVirtualBackgroundInformation: virtualBackgroundObject => videoService.setVirtualBackgroundInformation(virtualBackgroundObject),
 };

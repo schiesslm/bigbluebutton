@@ -209,14 +209,13 @@ class VideoPreview extends Component {
       viewState: VIEW_STATES.finding,
       deviceError: null,
       previewError: null,
+      virtualBackgroundError: null,
     };
 
     this.userParameterProfile = VideoService.getUserParameterProfile();
     this.mirrorOwnWebcam = VideoService.mirrorOwnWebcam();
     this.skipVideoPreview = Service.getSkipVideoPreview();
   }
-
-  virtualBgRef = null;
 
   componentDidMount() {
     const {
@@ -330,7 +329,7 @@ class VideoPreview extends Component {
         track.stop();
       });
     }
-    if (this.virtualBgRef != null) {
+    if (this.virtualBackgroundReference != null) {
       this.handleStopVirtualBackgroundSharing();
     }
   }
@@ -339,13 +338,13 @@ class VideoPreview extends Component {
     const { changeVirtualBackground } = this.props;
     const backgroundName = event;
 
-    if (backgroundName === "noBg" && this.virtualBgRef != null)
+    if (backgroundName === "noBg")
     {
       return this.handleStopVirtualBackgroundSharing(true);
     }
 
     createVirtualBackgroundService(this.deviceStream).then((res) => {
-      this.virtualBgRef = res;
+      this.virtualBackgroundReference = res;
       let effect = res.startEffect(this.deviceStream)
       this.video.srcObject = effect;
 
@@ -359,16 +358,16 @@ class VideoPreview extends Component {
         type: 'preset',
         name: backgroundName
       });
-    }).catch(e => {
-      console.error(e);
+    }).catch((error) => {
+      this.handleVirtualBackgroundError('do_virtualbg_preview', error, 'creating virtual background service instance');
     });
   }
 
   handleStopVirtualBackgroundSharing(resetState = false) {
     const { changeVirtualBackground } = this.props;
 
-    if(this.virtualBgRef != null) {
-      this.virtualBgRef.stopEffect();
+    if(this.virtualBackgroundReference != null) {
+      this.virtualBackgroundReference.stopEffect();
       this.video.srcObject = this.deviceStream;
     }
     if(resetState) {
@@ -469,6 +468,19 @@ class VideoPreview extends Component {
       { 0: `${error.name}: ${error.message}` });
   }
 
+  handleVirtualBackgroundError(logCode, error, description) {
+    logger.warn({
+      logCode: `video_preview_${logCode}_error`,
+      extraInfo: {
+        errorName: error.name,
+        errorMessage: error.message,
+      },
+    }, `Error ${description}`);
+    this.setState({
+      virtualBackgroundError: this.handleGUMError(error),
+    });
+  }
+
   displayInitialPreview(deviceId) {
     const { changeWebcam } = this.props;
     const availableProfiles = CAMERA_PROFILES.filter(p => !p.hidden);
@@ -525,7 +537,6 @@ class VideoPreview extends Component {
       });
       this.video.srcObject = stream;
       this.deviceStream = stream;
-      console.log(this.video);
     }).catch((error) => {
       this.handlePreviewError('do_gum_preview', error, 'displaying final selection');
     });
