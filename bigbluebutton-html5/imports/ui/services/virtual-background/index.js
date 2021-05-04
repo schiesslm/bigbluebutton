@@ -238,19 +238,34 @@ class VirtualBackgroundService {
         return this._outputCanvasElement.captureStream(parseInt(frameRate, 15));
     }
 
+    /**
+     * Stops the capture and render loop.
+     *
+     * @returns {void}
+     */
+         stopEffect() {
+            this._maskFrameTimerWorker.postMessage({
+                id: CLEAR_TIMEOUT
+            });
+
+            this._maskFrameTimerWorker.terminate();
+        }
+
 }
 
 export async function createVirtualBackgroundService() {
     let tflite;
+    let modelResponse;
 
     if (wasmcheck.feature.simd) {
         tflite = await createTFLiteSIMDModule();
+        modelResponse = await fetch(baseName+models.model144);
     } else {
         tflite = await createTFLiteModule();
+        modelResponse = await fetch(baseName+models.model96);
     }
 
     const modelBufferOffset = tflite._getModelBufferMemoryOffset();
-    const modelResponse = await fetch(baseName+models.model144);
     const virtualBackground = {
         virtualSource: baseName + '/resources/images/virtual-backgrounds/architecture.jpg',
         backgroundType: 'image',

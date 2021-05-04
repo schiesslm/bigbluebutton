@@ -118,7 +118,12 @@ class VideoService {
     }
   }
 
-  joinVideo(deviceId) {
+  joinVideo(deviceId, virtualBackgroundObject = {}) {
+
+    if (virtualBackgroundObject !== {}) {
+      // TODO: replace devicestream with the virtual background stream
+      console.log("joining with virtual background");
+    }
     this.deviceId = deviceId;
     this.isConnecting = true;
     Storage.setItem('isFirstJoin', false);
@@ -801,7 +806,7 @@ const videoService = new VideoService();
 export default {
   storeDeviceIds: () => videoService.storeDeviceIds(),
   exitVideo: () => videoService.exitVideo(),
-  joinVideo: deviceId => videoService.joinVideo(deviceId),
+  joinVideo: (deviceId, virtualBackgroundObject) => videoService.joinVideo(deviceId, virtualBackgroundObject),
   stopVideo: cameraId => videoService.stopVideo(cameraId),
   getVideoStreams: () => videoService.getVideoStreams(),
   getInfo: () => videoService.getInfo(),

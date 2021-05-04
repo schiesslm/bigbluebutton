@@ -35,7 +35,7 @@ const propTypes = {
   hasVideoStream: PropTypes.bool.isRequired,
   webcamDeviceId: PropTypes.string,
   sharedDevices: PropTypes.arrayOf(PropTypes.string),
-  virtualBackgroundName: PropTypes.string,
+  virtualBackground: PropTypes.object,
   changeVirtualBackground: PropTypes.func.isRequired,
 };
 
@@ -43,7 +43,7 @@ const defaultProps = {
   resolve: null,
   webcamDeviceId: null,
   sharedDevices: [],
-  virtualBackgroundName: null,
+  virtualBackground: {},
 };
 
 const intlMessages = defineMessages({
@@ -216,6 +216,8 @@ class VideoPreview extends Component {
     this.skipVideoPreview = Service.getSkipVideoPreview();
   }
 
+  virtualBgRef = null;
+
   componentDidMount() {
     const {
       webcamDeviceId,
@@ -328,29 +330,58 @@ class VideoPreview extends Component {
         track.stop();
       });
     }
+    if (this.virtualBgRef != null) {
+      this.handleStopVirtualBackgroundSharing();
+    }
   }
 
   handleSelectVirtualBackground(event) {
+    const { changeVirtualBackground } = this.props;
     const backgroundName = event;
-    console.log("Setting virtual background to: " + backgroundName);
-    const virtualBackgroundService = createVirtualBackgroundService(this.deviceStream).then((res) => {
+
+    if (backgroundName === "noBg" && this.virtualBgRef != null)
+    {
+      return this.handleStopVirtualBackgroundSharing(true);
+    }
+
+    createVirtualBackgroundService(this.deviceStream).then((res) => {
+      this.virtualBgRef = res;
       let effect = res.startEffect(this.deviceStream)
       this.video.srcObject = effect;
-    }).finally(() => {
-      console.log(this.video);
-    })
 
+      this.setState({
+        virtualBackground: {
+          type: 'preset',
+          name: backgroundName
+        },
+      });
+      changeVirtualBackground({
+        type: 'preset',
+        name: backgroundName
+      });
+    }).catch(e => {
+      console.error(e);
+    });
+  }
+
+  handleStopVirtualBackgroundSharing(resetState = false) {
     const { changeVirtualBackground } = this.props;
 
-    this.setState({
-      virtualBackgroundName: backgroundName
-    });
-    changeVirtualBackground(backgroundName);
+    if(this.virtualBgRef != null) {
+      this.virtualBgRef.stopEffect();
+      this.video.srcObject = this.deviceStream;
+    }
+    if(resetState) {
+      this.setState({
+        virtualBackground: {},
+      });
+
+      changeVirtualBackground({});
+    }
   }
 
   handleSelectWebcam(event) {
     const webcamValue = event.target.value;
-
     this.displayInitialPreview(webcamValue);
   }
 
@@ -744,6 +775,10 @@ class VideoPreview extends Component {
       <div className={styles.actions}>
         <Button
           label={intl.formatMessage(intlMessages.virtualBackgroundSettingsLabel)}
+          onClick={() => this.handleSelectVirtualBackground('bg')}
+        />
+        <Button
+          label={'Stop virtualbg effect'}
           onClick={() => this.handleSelectVirtualBackground('noBg')}
         />
       </div>
