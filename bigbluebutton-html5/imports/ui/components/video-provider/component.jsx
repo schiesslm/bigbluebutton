@@ -11,6 +11,7 @@ import {
 } from '/imports/utils/fetchStunTurnServers';
 import logger from '/imports/startup/client/logger';
 import { notifyStreamStateChange } from '/imports/ui/services/bbb-webrtc-sfu/stream-state-service';
+import { createVirtualBackgroundService } from '../../services/virtual-background';
 
 // Default values and default empty object to be backwards compat with 2.2.
 // FIXME Remove hardcoded defaults 2.3.
@@ -434,6 +435,10 @@ class VideoProvider extends Component {
     }
 
     this.destroyWebRTCPeer(stream);
+    if (isLocal) {
+      this.destroyVirtualBackgroundStream();
+    }
+
   }
 
   destroyWebRTCPeer(stream) {
@@ -490,6 +495,23 @@ class VideoProvider extends Component {
         },
         onicecandidate: this._getOnIceCandidateCallback(stream, isLocal),
       };
+
+      const virtualBackgroundInformation = VideoService.getVirtualBackgroundInformation();
+      if(this.virtualBackgroundInformationExists(virtualBackgroundInformation) && isLocal) {
+        const virtualBackgroundParameters = {
+          isVirtualBackground: true,
+          backgroundFilename: virtualBackgroundInformation.name,
+          backgroundType: virtualBackgroundInformation.type,
+        }
+        const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, constraints);
+        if (replacement instanceof MediaStream) {
+          peerOptions.videoStream = replacement;
+        } else {
+          console.log(replacement);
+          this.handleVirtualBackgroundError('do_virtualbg_provider', replacement, 'creating virtual background service instance');
+          this.destroyVirtualBackgroundStream();
+        }
+      }
 
       if (iceServers.length > 0) {
         peerOptions.configuration = {};
@@ -858,6 +880,59 @@ class VideoProvider extends Component {
       VideoService.notify(intl.formatMessage(intlSFUErrors[code] || intlSFUErrors[2200]));
     } else {
       this.stopWebRTCPeer(streamId, true);
+    }
+  }
+
+  virtualBackgroundInformationExists(virtualBackgroundInformation) {
+    return (virtualBackgroundInformation != null && Object.keys(virtualBackgroundInformation).length > 0);
+  }
+
+  handleVirtualBackgroundError(logCode, error, description) {
+    logger.warn({
+      logCode: `video_preview_${logCode}_error`,
+      extraInfo: {
+        errorName: error.name,
+        errorMessage: error.message,
+      },
+    }, `Error ${description}`);
+  }
+
+  /**
+   *
+   * @param {Object} parameters
+   * @param {Object} constraints
+   * @returns {MediaStream}
+   */
+  async createVirtualBackgroundStream(parameters, constraints) {
+    const tracks = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: constraints,
+    }).then((val) => {
+      return val
+    });
+
+    const replacement = await createVirtualBackgroundService(parameters).then((res) => {
+      this.virtualBackgroundReference = res;
+      this.virtualBgTracks = tracks;
+      const effect = res.startEffect(tracks);
+      return effect;
+    }).catch((error) => {
+      return error;
+    });
+
+    return replacement;
+  }
+
+  destroyVirtualBackgroundStream() {
+    if (this.virtualBackgroundReference != null) {
+      this.virtualBackgroundReference.stopEffect();
+      delete this.virtualBackgroundReference;
+    }
+    if (this.virtualBgTracks != null) {
+      this.virtualBgTracks.getTracks().forEach((track) => {
+        track.stop();
+      });
+      delete this.virtualBgTracks;
     }
   }
 

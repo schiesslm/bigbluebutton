@@ -202,31 +202,32 @@ class VirtualBackgroundService {
         }
     }
 
+    changeBackgroundImage(parameters = null) {
+        const virtualBackgroundImagePath = baseName + '/resources/images/virtual-backgrounds/';
+        let imagesrc = virtualBackgroundImagePath + 'board.jpg';
+        let type = 'blur';
+        console.log(parameters);
+        if (parameters != null && Object.keys(parameters).length > 0) {
+            imagesrc = parameters.name;
+            type = parameters.type;
+            this._options.virtualBackground.isVirtualBackground = parameters.isVirtualBackground;
+        }
+        this._virtualImage = document.createElement('img');
+        this._virtualImage.crossOrigin = 'anonymous';
+        this._virtualImage.src = virtualBackgroundImagePath + imagesrc;
+    }
+
     /**
      * Starts loop to capture video frame and render the segmentation mask.
      *
      * @param {MediaStream} stream - Stream to be used for processing.
      * @returns {MediaStream} - The stream with the applied effect.
      */
-    startEffect(stream, constraints = null) {
+    startEffect(stream) {
         this._maskFrameTimerWorker = new Worker(timerWorkerScript, { name: 'Blur effect worker' });
         this._maskFrameTimerWorker.onmessage = this._onMaskFrameTimer;
 
-        let firstVideoTrack = null;
-        if (stream == null && constraints != null) {
-            // firstVideoTrack = navigator.mediaDevices.getUserMedia(constraints).then((val) => {
-            //     console.log(val);
-            //     console.log(val.getTracks());
-            //     firstVideoTrack = val.getTracks()[0];
-            // }).catch((error) => {
-            //     console.error(error);
-            //     return;
-            // });
-        } else {
-            firstVideoTrack = stream.getVideoTracks()[0];
-        }
-
-        console.log(firstVideoTrack);
+        const firstVideoTrack = stream.getVideoTracks()[0];
 
         const { height, frameRate, width }
             = firstVideoTrack.getSettings ? firstVideoTrack.getSettings() : firstVideoTrack.getConstraints();
@@ -269,7 +270,16 @@ class VirtualBackgroundService {
 
 }
 
-export async function createVirtualBackgroundService() {
+    /**
+     * Creates VirtualBackgroundService. If parameters are empty, the default
+     * effect is blur. Parameters (if given) must contain the following:
+     * isVirtualBackground (boolean) - false for blur, true for image
+     * backgroundType (string) - 'image' for image, anything else for blur
+     * backgroundFilename (string) - File name that is stored in /public/resources/images/virtual-backgrounds/
+     * @param {Object} parameters
+     * @returns {VirtualBackgroundService}
+     */
+export async function createVirtualBackgroundService(parameters = null) {
     let tflite;
     let modelResponse;
 
@@ -281,11 +291,18 @@ export async function createVirtualBackgroundService() {
         modelResponse = await fetch(baseName+models.model96);
     }
 
+    console.log(parameters);
+
     const modelBufferOffset = tflite._getModelBufferMemoryOffset();
-    const virtualBackground = {
-        virtualSource: baseName + '/resources/images/virtual-backgrounds/architecture.jpg',
-        backgroundType: 'imagfe',
-        isVirtualBackground: false
+    const virtualBackgroundImagePath = baseName + '/resources/images/virtual-backgrounds/';
+
+    if (parameters == null) {
+        parameters = {};
+        parameters.virtualSource = virtualBackgroundImagePath + 'board.jpg';
+        parameters.backgroundType = 'image';
+        parameters.isVirtualBackground = true;
+    } else {
+        parameters.virtualSource = virtualBackgroundImagePath + parameters.backgroundFilename;
     }
 
     if (!modelResponse.ok) {
@@ -298,7 +315,7 @@ export async function createVirtualBackgroundService() {
 
     const options = {
         ...wasmcheck.feature.simd ? segmentationDimensions.model144 : segmentationDimensions.model96,
-        virtualBackground
+        virtualBackground: parameters
     };
 
     return new VirtualBackgroundService(tflite, options);

@@ -335,31 +335,59 @@ class VideoPreview extends Component {
   }
 
   handleSelectVirtualBackground(event) {
-    const { changeVirtualBackground } = this.props;
-    const backgroundName = event;
+    const parameters = {
+      type: event.type,
+      name: event.name,
+      isVirtualBackground: event.isVirtualBackground
+    }
 
-    if (backgroundName === "noBg")
+    if (parameters.name === "none")
     {
       return this.handleStopVirtualBackgroundSharing(true);
     }
 
-    createVirtualBackgroundService(this.deviceStream).then((res) => {
-      this.virtualBackgroundReference = res;
-      let effect = res.startEffect(this.deviceStream)
-      this.video.srcObject = effect;
+    if (this.virtualBackgroundReference != null) {
+      this.changeVirtualBackgroundImage(parameters);
+    } else {
+      this.createVirtualBackgroundStream(parameters);
+    }
+  }
 
-      this.setState({
-        virtualBackground: {
-          type: 'preset',
-          name: backgroundName
-        },
-      });
-      changeVirtualBackground({
-        type: 'preset',
-        name: backgroundName
-      });
+  changeVirtualBackgroundImage(parameters) {
+    this.virtualBackgroundReference.changeBackgroundImage(parameters);
+    this.setVirtualBackgroundStates(parameters);
+  }
+
+  createVirtualBackgroundStream(parameters, stream = null) {
+    const buildParams = {
+      isVirtualBackground: parameters.isVirtualBackground,
+      backgroundType: parameters.type,
+      backgroundFilename: parameters.name
+    }
+    createVirtualBackgroundService(buildParams).then((res) => {
+      this.virtualBackgroundReference = res;
+      let effect = res.startEffect(stream ? stream : this.deviceStream)
+      this.video.srcObject = effect;
+      this.setVirtualBackgroundStates(parameters);
     }).catch((error) => {
       this.handleVirtualBackgroundError('do_virtualbg_preview', error, 'creating virtual background service instance');
+    });
+  }
+
+  setVirtualBackgroundStates(parameters) {
+    const { changeVirtualBackground } = this.props;
+
+    this.setState({
+      virtualBackground: {
+        type: parameters.type,
+        name: parameters.name,
+        isVirtualBackground: parameters.isVirtualBackground
+      },
+    });
+    changeVirtualBackground({
+      type: parameters.type,
+      name: parameters.name,
+      isVirtualBackground: parameters.isVirtualBackground
     });
   }
 
@@ -369,14 +397,23 @@ class VideoPreview extends Component {
     if(this.virtualBackgroundReference != null) {
       this.virtualBackgroundReference.stopEffect();
       this.video.srcObject = this.deviceStream;
+      delete this.virtualBackgroundReference;
     }
     if(resetState) {
       this.setState({
         virtualBackground: {},
       });
-
       changeVirtualBackground({});
     }
+  }
+
+  virtualBackgroundInformationExists(virtualBackgroundInformation) {
+    return (virtualBackgroundInformation != null && Object.keys(virtualBackgroundInformation).length > 0);
+  }
+
+  getVirtualBackgroundThumbnail(name) {
+    const base = Meteor.settings.public.app.cdn + Meteor.settings.public.app.basename + Meteor.settings.public.app.instanceId;
+    return base + '/resources/images/virtual-backgrounds/thumbnails/' + name;
   }
 
   handleSelectWebcam(event) {
@@ -519,6 +556,7 @@ class VideoPreview extends Component {
   displayPreview(deviceId, profile) {
     const {
       changeProfile,
+      virtualBackground
     } = this.props;
 
     this.setState({
@@ -535,7 +573,13 @@ class VideoPreview extends Component {
       this.setState({
         isStartSharingDisabled: false,
       });
-      this.video.srcObject = stream;
+
+      if (this.virtualBackgroundInformationExists(virtualBackground)) {
+        this.handleStopVirtualBackgroundSharing();
+        this.createVirtualBackgroundStream(virtualBackground, stream);
+      } else {
+        this.video.srcObject = stream;
+      }
       this.deviceStream = stream;
     }).catch((error) => {
       this.handlePreviewError('do_gum_preview', error, 'displaying final selection');
@@ -697,8 +741,8 @@ class VideoPreview extends Component {
                     />
                   )
               }
+              {this.renderVirtualBackgroundSelection()}
             </div>
-            {this.renderVirtualBackgroundSelection()}
             {this.renderDeviceSelectors()}
           </div>
         );
@@ -782,15 +826,23 @@ class VideoPreview extends Component {
       intl,
     } = this.props;
 
+    console.log(this.getVirtualBackgroundThumbnail("home.jpg"));
     return (
-      <div className={styles.actions}>
-        <Button
+      <div className={styles.virtualBackgroundRow}>
+        {/* <Button
           label={intl.formatMessage(intlMessages.virtualBackgroundSettingsLabel)}
-          onClick={() => this.handleSelectVirtualBackground('bg')}
+          onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'home.jpg', isVirtualBackground: true})}
+          customIcon={() => this.getVirtualBackgroundThumbnail("home.jpg")}
+        /> */}
+        <input type="image" src={this.getVirtualBackgroundThumbnail('home.jpg')}
+        onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'home.jpg', isVirtualBackground: true})}
+        />
+        <input type="image" src={this.getVirtualBackgroundThumbnail('board.jpg')}
+        onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'board.jpg', isVirtualBackground: true})}
         />
         <Button
-          label={'Stop virtualbg effect'}
-          onClick={() => this.handleSelectVirtualBackground('noBg')}
+          label={'Stop'}
+          onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'none'})}
         />
       </div>
     );

@@ -95,7 +95,7 @@
 .content {
   display: flex;
   height: 14rem;
-  max-height: 40vh;
+  max-height: 50vh;
   justify-content: center;
   align-items: center;
 
@@ -200,4 +200,11 @@
   to {
     width: 1.5em;
   }
+}
+
+.virtualBackgroundRow {
+  display: flex;
+  justify-content: space-around;
+  font-size: 1.25rem;
+  max-width: 50%;
 }
