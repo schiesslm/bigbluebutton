@@ -54,6 +54,12 @@ const intlMessages = defineMessages({
   prevPageLabel: {
     id: 'app.video.pagination.prevPage',
   },
+  enableBlurLabel: {
+    id: 'app.video.virtualBackground.enableBlur',
+  },
+  disableBlurLabel: {
+    id: 'app.video.virtualBackground.disableBlur',
+  },
 });
 
 const findOptimalGrid = (canvasWidth, canvasHeight, gutter, aspectRatio, numItems, columns = 1) => {
@@ -84,7 +90,6 @@ const ACTION_NAME_MIRROR = 'mirror';
 class VideoList extends Component {
   constructor(props) {
     super(props);
-
     this.state = {
       focusedId: false,
       optimalGrid: {
@@ -247,6 +252,11 @@ class VideoList extends Component {
     this.ticking = true;
   }
 
+  handleBlur(stream) {
+    const { virtualBlurHandler, blurIsActive } = this.props;
+    virtualBlurHandler(!blurIsActive, stream);
+  }
+
   renderNextPageButton() {
     const { intl, numberOfPages, currentVideoPageIndex } = this.props;
 
@@ -303,6 +313,7 @@ class VideoList extends Component {
       onVideoItemUnmount,
       swapLayout,
       currentUserId,
+      blurIsActive,
     } = this.props;
     const { focusedId } = this.state;
 
@@ -322,9 +333,9 @@ class VideoList extends Component {
       if (currentUserId === userId) {
         actions.push({
           actionName: 'blurBackground',
-          label: 'Blur',
+          label: intl.formatMessage(blurIsActive ? intlMessages['disableBlurLabel'] : intlMessages['enableBlurLabel']),
           description: 'Blur',
-          onClick: () => console.log('blurring')
+          onClick: () => this.handleBlur(stream)
         })
       }
 

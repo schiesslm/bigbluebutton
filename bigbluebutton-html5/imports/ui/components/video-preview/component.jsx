@@ -185,6 +185,12 @@ const intlMessages = defineMessages({
     id: 'app.video.genericError',
     description: 'error message for when the webcam sharing fails with unknown error',
   },
+  noneLabel: {
+    id: 'app.video.virtualBackground.none',
+  },
+  blurLabel: {
+    id: 'app.video.virtualBackground.blur',
+  }
 });
 
 class VideoPreview extends Component {
@@ -900,7 +906,7 @@ class VideoPreview extends Component {
                 name: 'none',
                 isVirtualBackground: false
               })}>
-                None
+                {intl.formatMessage(intlMessages['noneLabel'])}
               </option>
               <option value={
                 JSON.stringify({
@@ -908,7 +914,7 @@ class VideoPreview extends Component {
                 name: '',
                 isVirtualBackground: false
               })}>
-                Blur
+                {intl.formatMessage(intlMessages['blurLabel'])}
               </option>
 
               {IMAGENAMES.map((image, index) => (

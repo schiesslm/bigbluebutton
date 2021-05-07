@@ -125,6 +125,7 @@ class VideoProvider extends Component {
       VideoService.getPageChangeDebounceTime(),
       { leading: false, trailing: true },
     );
+    this.virtualBlurHandler = this.virtualBlurHandler.bind(this);
   }
 
   componentDidMount() {
@@ -499,7 +500,7 @@ class VideoProvider extends Component {
       const virtualBackgroundInformation = VideoService.getVirtualBackgroundInformation();
       if(this.virtualBackgroundInformationExists(virtualBackgroundInformation) && isLocal) {
         const virtualBackgroundParameters = {
-          isVirtualBackground: true,
+          isVirtualBackground: virtualBackgroundInformation.isVirtualBackground,
           backgroundFilename: virtualBackgroundInformation.name,
           backgroundType: virtualBackgroundInformation.type,
         }
@@ -896,6 +897,37 @@ class VideoProvider extends Component {
     }, `Error ${description}`);
   }
 
+  // Rejoin the video conference with or without blur effect enabled
+  virtualBlurHandler(data, stream) {
+    this.sendMessage({
+      id: 'stop',
+      type: 'video',
+      cameraId: stream,
+      role: 'share',
+    });
+    const cameraProfile = VideoService.getCameraProfile();
+    const deviceId = cameraProfile.constraints.deviceId.exact;
+    console.log(deviceId);
+    if (deviceId == null) {
+      return;
+    }
+    if(data) {
+      VideoService.setVirtualBackgroundInformation({
+        type: 'blur',
+        name: '',
+        isVirtualBackground: false
+      });
+      setTimeout(() => {
+        VideoService.joinVideo(deviceId)
+      }, 500);
+    } else {
+      VideoService.setVirtualBackgroundInformation({});
+      setTimeout(() => {
+        VideoService.joinVideo(deviceId)
+      }, 500);
+    }
+  }
+
   /**
    *
    * @param {Object} parameters
@@ -945,6 +977,8 @@ class VideoProvider extends Component {
         onVideoItemUnmount={this.destroyVideoTag}
         swapLayout={swapLayout}
         currentVideoPageIndex={currentVideoPageIndex}
+        virtualBlurHandler={this.virtualBlurHandler}
+        blurIsActive={VideoService.getVirtualBackgroundInformation()?.type === 'blur'}
       />
     );
   }
