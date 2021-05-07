@@ -17,6 +17,12 @@ import { createVirtualBackgroundService } from '../../services/virtual-backgroun
 const CAMERA_PROFILES = Meteor.settings.public.kurento.cameraProfiles;
 const GUM_TIMEOUT = Meteor.settings.public.kurento.gUMTimeout;
 
+const VIRTUALBACKGROUNDCONFIG = Meteor.settings.public.virtualBackgrounds;
+const THUMBNAILSPATH = VIRTUALBACKGROUNDCONFIG.thumbnailsPath;
+const IMAGENAMES = VIRTUALBACKGROUNDCONFIG.fileNames;
+const ISSTOREDONBBB = VIRTUALBACKGROUNDCONFIG.storedOnBBB;
+const SHOWTHUMBNAILS = VIRTUALBACKGROUNDCONFIG.showThumbnails;
+
 const VIEW_STATES = {
   finding: 'finding',
   found: 'found',
@@ -335,6 +341,9 @@ class VideoPreview extends Component {
   }
 
   handleSelectVirtualBackground(event) {
+    if(typeof event == 'string') {
+      event = JSON.parse(event);
+    }
     const parameters = {
       type: event.type,
       name: event.name,
@@ -413,7 +422,11 @@ class VideoPreview extends Component {
 
   getVirtualBackgroundThumbnail(name) {
     const base = Meteor.settings.public.app.cdn + Meteor.settings.public.app.basename + Meteor.settings.public.app.instanceId;
-    return base + '/resources/images/virtual-backgrounds/thumbnails/' + name;
+
+    if(name === 'blur.jpg') {
+      return base + '/resources/images/virtual-backgrounds/thumbnails/' + name;
+    }
+    return (ISSTOREDONBBB ? base : '') + THUMBNAILSPATH + name;
   }
 
   handleSelectWebcam(event) {
@@ -824,28 +837,95 @@ class VideoPreview extends Component {
   renderVirtualBackgroundSelection() {
     const {
       intl,
+      virtualBackground
     } = this.props;
 
-    console.log(this.getVirtualBackgroundThumbnail("home.jpg"));
-    return (
-      <div className={styles.virtualBackgroundRow}>
-        {/* <Button
-          label={intl.formatMessage(intlMessages.virtualBackgroundSettingsLabel)}
-          onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'home.jpg', isVirtualBackground: true})}
-          customIcon={() => this.getVirtualBackgroundThumbnail("home.jpg")}
-        /> */}
-        <input type="image" src={this.getVirtualBackgroundThumbnail('home.jpg')}
-        onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'home.jpg', isVirtualBackground: true})}
-        />
-        <input type="image" src={this.getVirtualBackgroundThumbnail('board.jpg')}
-        onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'board.jpg', isVirtualBackground: true})}
-        />
-        <Button
-          label={'Stop'}
-          onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'none'})}
-        />
-      </div>
-    );
+    if(SHOWTHUMBNAILS) {
+      return (
+        <div>
+          <label className={styles.label}>
+              {intl.formatMessage(intlMessages.virtualBackgroundSettingsLabel)}
+          </label>
+          <div className={styles.virtualBackgroundRow}>
+            <Button
+              icon="close"
+              label=""
+              onClick={() => this.handleSelectVirtualBackground({type: 'image', name: 'none'})}
+            />
+            <input
+              type="image"
+              src={this.getVirtualBackgroundThumbnail('blur.jpg')}
+              onClick={() => this.handleSelectVirtualBackground(
+                {
+                  type: 'blur',
+                  name: '',
+                  isVirtualBackground: false
+                })}
+              />
+              {/* className={this.virtualBackgroundIsLoading? styles.virtualBackgroundDisabled : ''} */}
+            {IMAGENAMES.map((image, index) => (
+              <input
+                type="image"
+                key={index}
+                src={this.getVirtualBackgroundThumbnail(image)}
+                onClick={() => this.handleSelectVirtualBackground(
+                  {
+                    type: 'image',
+                    name: image,
+                    isVirtualBackground: true
+                  }
+                )}
+              />
+            ))}
+
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div>
+          <label className={styles.label} htmlFor="setVirtualBg">
+            {intl.formatMessage(intlMessages.virtualBackgroundSettingsLabel)}
+          </label>
+          {/* style={{pointerEvents: this.virtualBackgroundIsLoading ? 'none' : 'all'}} */}
+          <div className={styles.virtualBackgroundRow}>
+            <select
+              value={JSON.stringify(virtualBackground) || ''}
+              className={styles.select}
+              onChange={e => this.handleSelectVirtualBackground(e.target.value)}
+            >
+              <option value={
+                JSON.stringify({
+                type: 'none',
+                name: 'none',
+                isVirtualBackground: false
+              })}>
+                None
+              </option>
+              <option value={
+                JSON.stringify({
+                type: 'blur',
+                name: '',
+                isVirtualBackground: false
+              })}>
+                Blur
+              </option>
+
+              {IMAGENAMES.map((image, index) => (
+                <option key={index} value={
+                  JSON.stringify({
+                    type: 'image',
+                    name: image,
+                    isVirtualBackground: true
+                  })}>
+                    {image.split(".")[0]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      );
+    }
   }
 
   render() {

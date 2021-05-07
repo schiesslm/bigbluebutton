@@ -302,6 +302,7 @@ class VideoList extends Component {
       onVideoItemMount,
       onVideoItemUnmount,
       swapLayout,
+      currentUserId,
     } = this.props;
     const { focusedId } = this.state;
 
@@ -317,6 +318,15 @@ class VideoList extends Component {
         description: intl.formatMessage(intlMessages['mirrorDesc']),
         onClick: () => this.mirrorCamera(stream),
       }];
+
+      if (currentUserId === userId) {
+        actions.push({
+          actionName: 'blurBackground',
+          label: 'Blur',
+          description: 'Blur',
+          onClick: () => console.log('blurring')
+        })
+      }
 
       if (numOfStreams > 2) {
         actions.push({

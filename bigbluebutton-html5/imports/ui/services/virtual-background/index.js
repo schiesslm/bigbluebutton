@@ -1,6 +1,4 @@
 import * as wasmcheck from 'wasm-check';
-import '@tensorflow/tfjs-backend-cpu';
-import * as tf from '@tensorflow/tfjs-core';
 import {Meteor} from "meteor/meteor";
 import createTFLiteModule from './tflite/tflite.js';
 import createTFLiteSIMDModule from './tflite/tflite-simd.js';
@@ -12,6 +10,11 @@ import {
 } from './TimeWorker';
 
 const baseName = Meteor.settings.public.app.cdn + Meteor.settings.public.app.basename + Meteor.settings.public.app.instanceId;
+
+const VIRTUALBACKGROUNDCONFIG = Meteor.settings.public.virtualBackgrounds;
+const IMAGESPATH = VIRTUALBACKGROUNDCONFIG.imagesPath;
+const ISSTOREDONBBB = VIRTUALBACKGROUNDCONFIG.storedOnBBB;
+
 const models = {
     model96: '/resources/tfmodels/segm_lite_v681.tflite',
     model144: '/resources/tfmodels/segm_full_v679.tflite'
@@ -203,10 +206,9 @@ class VirtualBackgroundService {
     }
 
     changeBackgroundImage(parameters = null) {
-        const virtualBackgroundImagePath = baseName + '/resources/images/virtual-backgrounds/';
-        let imagesrc = virtualBackgroundImagePath + 'board.jpg';
+        const virtualBackgroundImagePath = (ISSTOREDONBBB ? baseName : '') + IMAGESPATH;
+        let imagesrc = virtualBackgroundImagePath + '';
         let type = 'blur';
-        console.log(parameters);
         if (parameters != null && Object.keys(parameters).length > 0) {
             imagesrc = parameters.name;
             type = parameters.type;
@@ -291,16 +293,14 @@ export async function createVirtualBackgroundService(parameters = null) {
         modelResponse = await fetch(baseName+models.model96);
     }
 
-    console.log(parameters);
-
     const modelBufferOffset = tflite._getModelBufferMemoryOffset();
-    const virtualBackgroundImagePath = baseName + '/resources/images/virtual-backgrounds/';
+    const virtualBackgroundImagePath = (ISSTOREDONBBB ? baseName : '') + IMAGESPATH;
 
     if (parameters == null) {
         parameters = {};
-        parameters.virtualSource = virtualBackgroundImagePath + 'board.jpg';
-        parameters.backgroundType = 'image';
-        parameters.isVirtualBackground = true;
+        parameters.virtualSource = virtualBackgroundImagePath + '';
+        parameters.backgroundType = 'blur';
+        parameters.isVirtualBackground = false;
     } else {
         parameters.virtualSource = virtualBackgroundImagePath + parameters.backgroundFilename;
     }

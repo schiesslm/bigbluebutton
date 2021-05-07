@@ -507,7 +507,6 @@ class VideoProvider extends Component {
         if (replacement instanceof MediaStream) {
           peerOptions.videoStream = replacement;
         } else {
-          console.log(replacement);
           this.handleVirtualBackgroundError('do_virtualbg_provider', replacement, 'creating virtual background service instance');
           this.destroyVirtualBackgroundStream();
         }

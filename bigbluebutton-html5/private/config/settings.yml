@@ -617,6 +617,15 @@ public:
       throttleInterval: 400
       flushOnClose: true
       logTag: ''
+  virtualBackgrounds:
+    storedOnBBB: true
+    showThumbnails: true
+    imagesPath: /resources/images/virtual-backgrounds/
+    thumbnailsPath: /resources/images/virtual-backgrounds/thumbnails/
+    fileNames:
+      - home.jpg
+      - coffeeshop.jpg
+      - board.jpg
 private:
   analytics:
     includeChat: true
