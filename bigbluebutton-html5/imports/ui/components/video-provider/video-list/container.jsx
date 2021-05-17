@@ -17,6 +17,6 @@ export default withTracker(props => ({
   numberOfPages: VideoService.getNumberOfPages(),
   currentVideoPageIndex: props.currentVideoPageIndex,
   currentUserId: Auth.userID,
-  virtualBlurHandler: props.virtualBlurHandler,
-  blurIsActive: props.blurIsActive,
+  virtualBgChangeHandler: props.virtualBgChangeHandler,
+  virtualBgIsActive: props.virtualBgIsActive,
 }))(VideoListContainer);

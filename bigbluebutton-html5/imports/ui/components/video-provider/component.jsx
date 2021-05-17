@@ -97,6 +97,7 @@ class VideoProvider extends Component {
 
     this.state = {
       socketOpen: false,
+      virtualBgIsActive: false,
     };
 
     this.info = VideoService.getInfo();
@@ -125,7 +126,7 @@ class VideoProvider extends Component {
       VideoService.getPageChangeDebounceTime(),
       { leading: false, trailing: true },
     );
-    this.virtualBlurHandler = this.virtualBlurHandler.bind(this);
+    this.virtualBgChangeHandler = this.virtualBgChangeHandler.bind(this);
   }
 
   componentDidMount() {
@@ -263,6 +264,7 @@ class VideoProvider extends Component {
     streamsToConnect.forEach((stream) => {
       const isLocal = VideoService.isLocalStream(stream);
       this.createWebRTCPeer(stream, isLocal);
+      this.setVirtualBgIsActive(stream);
     });
   }
 
@@ -896,34 +898,84 @@ class VideoProvider extends Component {
     }, `Error ${description}`);
   }
 
-  // Rejoin the video conference with or without blur effect enabled
-  virtualBlurHandler(data, stream) {
-    this.sendMessage({
-      id: 'stop',
-      type: 'video',
-      cameraId: stream,
-      role: 'share',
-    });
+  setVirtualBgIsActive(stream) {
+    const isLocal = VideoService.isLocalStream(stream);
+    if (isLocal && this.virtualBackgroundInformationExists(VideoService.getVirtualBackgroundInformation())) {
+      this.setState({
+        virtualBgIsActive: true,
+      });
+    } else {
+      this.setState({
+        virtualBgIsActive: false,
+      });
+    }
+  }
+
+  /**
+   * Replace RTCRtpSender and WebRTCPeer (local) tracks. Accepts "data" (boolean)
+   * and "stream" (string). If no virtual background information exists, the blur
+   * effect is toggled.
+   * @param {boolean} data
+   * @param {string} stream
+   * @returns
+   */
+  async virtualBgChangeHandler(data, stream) {
     const cameraProfile = VideoService.getCameraProfile();
     const deviceId = cameraProfile.constraints.deviceId.exact;
-    console.log(deviceId);
+    const localStreams = this.webRtcPeers[stream].peerConnection.getSenders();
+
     if (deviceId == null) {
       return;
     }
     if(data) {
-      VideoService.setVirtualBackgroundInformation({
-        type: 'blur',
-        name: '',
-        isVirtualBackground: false
+      const virtualBackgroundInformation = VideoService.getVirtualBackgroundInformation();
+      let virtualBackgroundParameters = null;
+      if(this.virtualBackgroundInformationExists(virtualBackgroundInformation)) {
+        virtualBackgroundParameters = {
+          isVirtualBackground: virtualBackgroundInformation.isVirtualBackground,
+          backgroundFilename: virtualBackgroundInformation.name,
+          backgroundType: virtualBackgroundInformation.type,
+        }
+      }
+      const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, cameraProfile.constraints);
+
+      // Replace local track
+      this.webRtcPeers[stream].localStream.getVideoTracks().forEach(track => {
+        this.webRtcPeers[stream].localStream.removeTrack(track);
       });
-      setTimeout(() => {
-        VideoService.joinVideo(deviceId)
-      }, 500);
+      this.webRtcPeers[stream].localStream.addTrack(replacement.getTracks()[0]);
+
+      // Replace RTCRtpSender track
+      localStreams.forEach(localStream => {
+        localStream.replaceTrack(replacement.getTracks()[0]);
+      });
+
+      this.setState({
+        virtualBgIsActive: true,
+      });
     } else {
-      VideoService.setVirtualBackgroundInformation({});
-      setTimeout(() => {
-        VideoService.joinVideo(deviceId)
-      }, 500);
+      const replacement = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: cameraProfile.constraints,
+      }).then((val) => {
+        return val
+      });
+
+      // Replace local track
+      this.webRtcPeers[stream].localStream.getVideoTracks().forEach(track => {
+        this.webRtcPeers[stream].localStream.removeTrack(track);
+      });
+      this.webRtcPeers[stream].localStream.addTrack(replacement.getTracks()[0]);
+
+      // Replace RTCRtpSender track
+      localStreams.forEach(localStream => {
+        localStream.replaceTrack(replacement.getTracks()[0]);
+      });
+
+      this.setState({
+        virtualBgIsActive: false,
+      });
+      this.destroyVirtualBackgroundStream();
     }
   }
 
@@ -968,6 +1020,7 @@ class VideoProvider extends Component {
 
   render() {
     const { swapLayout, currentVideoPageIndex, streams } = this.props;
+    const { virtualBgIsActive } = this.state;
 
     return (
       <VideoListContainer
@@ -976,8 +1029,8 @@ class VideoProvider extends Component {
         onVideoItemUnmount={this.destroyVideoTag}
         swapLayout={swapLayout}
         currentVideoPageIndex={currentVideoPageIndex}
-        virtualBlurHandler={this.virtualBlurHandler}
-        blurIsActive={VideoService.getVirtualBackgroundInformation()?.type === 'blur'}
+        virtualBgChangeHandler={this.virtualBgChangeHandler}
+        virtualBgIsActive={virtualBgIsActive}
       />
     );
   }

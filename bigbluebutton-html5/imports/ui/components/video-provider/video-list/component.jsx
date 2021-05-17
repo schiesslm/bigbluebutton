@@ -54,11 +54,11 @@ const intlMessages = defineMessages({
   prevPageLabel: {
     id: 'app.video.pagination.prevPage',
   },
-  enableBlurLabel: {
-    id: 'app.video.virtualBackground.enableBlur',
+  toggleVirtualBgOnLabel: {
+    id: 'app.video.virtualBackground.toggleVirtualBgOn',
   },
-  disableBlurLabel: {
-    id: 'app.video.virtualBackground.disableBlur',
+  toggleVirtualBgOffLabel: {
+    id: 'app.video.virtualBackground.toggleVirtualBgOff',
   },
 });
 
@@ -252,9 +252,9 @@ class VideoList extends Component {
     this.ticking = true;
   }
 
-  handleBlur(stream) {
-    const { virtualBlurHandler, blurIsActive } = this.props;
-    virtualBlurHandler(!blurIsActive, stream);
+  handleVirtualBgToggle(stream) {
+    const { virtualBgChangeHandler, virtualBgIsActive } = this.props;
+    virtualBgChangeHandler(!virtualBgIsActive, stream);
   }
 
   renderNextPageButton() {
@@ -313,7 +313,7 @@ class VideoList extends Component {
       onVideoItemUnmount,
       swapLayout,
       currentUserId,
-      blurIsActive,
+      virtualBgIsActive,
     } = this.props;
     const { focusedId } = this.state;
 
@@ -333,9 +333,9 @@ class VideoList extends Component {
       if (currentUserId === userId) {
         actions.push({
           actionName: 'blurBackground',
-          label: intl.formatMessage(blurIsActive ? intlMessages['disableBlurLabel'] : intlMessages['enableBlurLabel']),
+          label: intl.formatMessage(virtualBgIsActive ? intlMessages['toggleVirtualBgOffLabel'] : intlMessages['toggleVirtualBgOnLabel']),
           description: 'Blur',
-          onClick: () => this.handleBlur(stream)
+          onClick: () => this.handleVirtualBgToggle(stream)
         })
       }
 
