@@ -264,7 +264,6 @@ class VideoProvider extends Component {
     streamsToConnect.forEach((stream) => {
       const isLocal = VideoService.isLocalStream(stream);
       this.createWebRTCPeer(stream, isLocal);
-      this.setVirtualBgIsActive(stream);
     });
   }
 
@@ -898,19 +897,6 @@ class VideoProvider extends Component {
     }, `Error ${description}`);
   }
 
-  setVirtualBgIsActive(stream) {
-    const isLocal = VideoService.isLocalStream(stream);
-    if (isLocal && this.virtualBackgroundInformationExists(VideoService.getVirtualBackgroundInformation())) {
-      this.setState({
-        virtualBgIsActive: true,
-      });
-    } else {
-      this.setState({
-        virtualBgIsActive: false,
-      });
-    }
-  }
-
   /**
    * Replace RTCRtpSender and WebRTCPeer (local) tracks. Accepts "data" (boolean)
    * and "stream" (string). If no virtual background information exists, the blur
@@ -949,10 +935,6 @@ class VideoProvider extends Component {
       localStreams.forEach(localStream => {
         localStream.replaceTrack(replacement.getTracks()[0]);
       });
-
-      this.setState({
-        virtualBgIsActive: true,
-      });
     } else {
       const replacement = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -970,10 +952,6 @@ class VideoProvider extends Component {
       // Replace RTCRtpSender track
       localStreams.forEach(localStream => {
         localStream.replaceTrack(replacement.getTracks()[0]);
-      });
-
-      this.setState({
-        virtualBgIsActive: false,
       });
       this.destroyVirtualBackgroundStream();
     }
@@ -1002,6 +980,10 @@ class VideoProvider extends Component {
       return error;
     });
 
+    this.setState({
+      virtualBgIsActive: true,
+    });
+
     return replacement;
   }
 
@@ -1016,6 +998,9 @@ class VideoProvider extends Component {
       });
       delete this.virtualBgTracks;
     }
+    this.setState({
+      virtualBgIsActive: false,
+    });
   }
 
   render() {
