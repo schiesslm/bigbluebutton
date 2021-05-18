@@ -98,6 +98,7 @@ class VideoProvider extends Component {
     this.state = {
       socketOpen: false,
       virtualBgIsActive: false,
+      cameraTrack: null,
     };
 
     this.info = VideoService.getInfo();
@@ -437,7 +438,7 @@ class VideoProvider extends Component {
 
     this.destroyWebRTCPeer(stream);
     if (isLocal) {
-      this.destroyVirtualBackgroundStream();
+      this.destroyVirtualBackgroundStream(true);
     }
 
   }
@@ -909,6 +910,7 @@ class VideoProvider extends Component {
     const cameraProfile = VideoService.getCameraProfile();
     const deviceId = cameraProfile.constraints.deviceId.exact;
     const localStreams = this.webRtcPeers[stream].peerConnection.getSenders();
+    const { cameraTrack } = this.state;
 
     if (deviceId == null) {
       return;
@@ -923,25 +925,37 @@ class VideoProvider extends Component {
           backgroundType: virtualBackgroundInformation.type,
         }
       }
-      const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, cameraProfile.constraints);
 
+      let trackToReplace = null;
       // Replace local track
       this.webRtcPeers[stream].localStream.getVideoTracks().forEach(track => {
         this.webRtcPeers[stream].localStream.removeTrack(track);
+        trackToReplace = track;
       });
-      this.webRtcPeers[stream].localStream.addTrack(replacement.getTracks()[0]);
 
+      // Use existing track if given
+      const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, cameraProfile.constraints, trackToReplace);
+      this.webRtcPeers[stream].localStream.addTrack(replacement.getTracks()[0]);
       // Replace RTCRtpSender track
       localStreams.forEach(localStream => {
         localStream.replaceTrack(replacement.getTracks()[0]);
       });
+
     } else {
-      const replacement = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: cameraProfile.constraints,
-      }).then((val) => {
-        return val
-      });
+      let replacement = null;
+
+      // Use existing cameraTrack (if exists)
+      if (cameraTrack != null && cameraTrack instanceof MediaStreamTrack) {
+        replacement = new MediaStream();
+        replacement.addTrack(cameraTrack);
+      } else {
+        replacement = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: cameraProfile.constraints,
+        }).then((val) => {
+          return val
+        });
+      }
 
       // Replace local track
       this.webRtcPeers[stream].localStream.getVideoTracks().forEach(track => {
@@ -963,40 +977,49 @@ class VideoProvider extends Component {
    * @param {Object} constraints
    * @returns {MediaStream}
    */
-  async createVirtualBackgroundStream(parameters, constraints) {
-    const tracks = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: constraints,
-    }).then((val) => {
-      return val
-    });
+  async createVirtualBackgroundStream(parameters, constraints, trackToReplace = null) {
+
+    // Use existing track if given
+    let tracks = null;
+    if (trackToReplace != null && trackToReplace instanceof MediaStreamTrack) {
+      tracks = new MediaStream();
+      tracks.addTrack(trackToReplace);
+    } else {
+      tracks = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: constraints,
+      }).then((val) => {
+        return val
+      });
+    }
 
     const replacement = await createVirtualBackgroundService(parameters).then((res) => {
       this.virtualBackgroundReference = res;
-      this.virtualBgTracks = tracks;
       const effect = res.startEffect(tracks);
       return effect;
     }).catch((error) => {
       return error;
     });
-
     this.setState({
       virtualBgIsActive: true,
+      cameraTrack: tracks.getTracks()[0],
     });
 
     return replacement;
   }
 
-  destroyVirtualBackgroundStream() {
+  destroyVirtualBackgroundStream(stopCameraTrack = false) {
+    const { cameraTrack } = this.state;
     if (this.virtualBackgroundReference != null) {
       this.virtualBackgroundReference.stopEffect();
       delete this.virtualBackgroundReference;
     }
-    if (this.virtualBgTracks != null) {
-      this.virtualBgTracks.getTracks().forEach((track) => {
-        track.stop();
-      });
-      delete this.virtualBgTracks;
+
+    if (cameraTrack != null && cameraTrack instanceof MediaStreamTrack && stopCameraTrack) {
+      cameraTrack.stop();
+      this.setState({
+        cameraTrack: null
+      })
     }
     this.setState({
       virtualBgIsActive: false,
