@@ -18,10 +18,20 @@ const CAMERA_PROFILES = Meteor.settings.public.kurento.cameraProfiles;
 const GUM_TIMEOUT = Meteor.settings.public.kurento.gUMTimeout;
 
 const VIRTUALBACKGROUNDCONFIG = Meteor.settings.public.virtualBackgrounds;
-const THUMBNAILSPATH = VIRTUALBACKGROUNDCONFIG.thumbnailsPath;
-const IMAGENAMES = VIRTUALBACKGROUNDCONFIG.fileNames;
-const ISSTOREDONBBB = VIRTUALBACKGROUNDCONFIG.storedOnBBB;
-const SHOWTHUMBNAILS = VIRTUALBACKGROUNDCONFIG.showThumbnails;
+let VIRTUALBACKGROUNDENABLED = true;
+let THUMBNAILSPATH = '/resources/images/virtual-backgrounds/thumbnails/';
+let IMAGENAMES = ['home.jpg', 'coffeeshop.jpg', 'board.jpg'];
+let ISSTOREDONBBB = true;
+let SHOWTHUMBNAILS = true;
+if (VIRTUALBACKGROUNDCONFIG != null) {
+  VIRTUALBACKGROUNDENABLED = VIRTUALBACKGROUNDCONFIG.enabled;
+  THUMBNAILSPATH = VIRTUALBACKGROUNDCONFIG.thumbnailsPath;
+  IMAGENAMES = VIRTUALBACKGROUNDCONFIG.fileNames;
+  ISSTOREDONBBB = VIRTUALBACKGROUNDCONFIG.storedOnBBB;
+  SHOWTHUMBNAILS = VIRTUALBACKGROUNDCONFIG.showThumbnails;
+}
+
+
 
 const VIEW_STATES = {
   finding: 'finding',
@@ -845,6 +855,12 @@ class VideoPreview extends Component {
       intl,
       virtualBackground
     } = this.props;
+
+    // Disable virtual backgrounds for iOS
+    const userAgent = window.navigator.userAgent;
+    if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i) || !VIRTUALBACKGROUNDENABLED) {
+      return;
+    }
 
     if(SHOWTHUMBNAILS) {
       return (

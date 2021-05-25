@@ -87,6 +87,12 @@ const ASPECT_RATIO = 4 / 3;
 const ACTION_NAME_FOCUS = 'focus';
 const ACTION_NAME_MIRROR = 'mirror';
 
+const VIRTUALBACKGROUNDCONFIG = Meteor.settings.public.virtualBackgrounds;
+let VIRTUALBACKGROUNDENABLED = true;
+if (VIRTUALBACKGROUNDCONFIG != null) {
+  VIRTUALBACKGROUNDENABLED = VIRTUALBACKGROUNDCONFIG.enabled;
+}
+
 class VideoList extends Component {
   constructor(props) {
     super(props);
@@ -330,7 +336,13 @@ class VideoList extends Component {
         onClick: () => this.mirrorCamera(stream),
       }];
 
-      if (currentUserId === userId) {
+      // Disable virtual backgrounds for iOS
+      let isiOS = false;
+      const userAgent = window.navigator.userAgent;
+      if (userAgent.match(/iPad/i) || userAgent.match(/iPhone/i)) {
+        isiOS = true;
+      }
+      if (currentUserId === userId && !isiOS && VIRTUALBACKGROUNDENABLED) {
         actions.push({
           actionName: 'blurBackground',
           label: intl.formatMessage(virtualBgIsActive ? intlMessages['toggleVirtualBgOffLabel'] : intlMessages['toggleVirtualBgOnLabel']),

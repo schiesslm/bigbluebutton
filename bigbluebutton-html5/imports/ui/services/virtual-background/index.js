@@ -12,8 +12,14 @@ import {
 const baseName = Meteor.settings.public.app.cdn + Meteor.settings.public.app.basename + Meteor.settings.public.app.instanceId;
 
 const VIRTUALBACKGROUNDCONFIG = Meteor.settings.public.virtualBackgrounds;
-const IMAGESPATH = VIRTUALBACKGROUNDCONFIG.imagesPath;
-const ISSTOREDONBBB = VIRTUALBACKGROUNDCONFIG.storedOnBBB;
+let IMAGESPATH = '/resources/images/virtual-backgrounds/';
+let ISSTOREDONBBB = true;
+
+if (VIRTUALBACKGROUNDCONFIG != null) {
+    IMAGESPATH = VIRTUALBACKGROUNDCONFIG.imagesPath;
+    ISSTOREDONBBB = VIRTUALBACKGROUNDCONFIG.storedOnBBB;
+}
+
 
 const models = {
     model96: '/resources/tfmodels/segm_lite_v681.tflite',
