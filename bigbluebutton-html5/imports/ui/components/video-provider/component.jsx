@@ -97,8 +97,10 @@ class VideoProvider extends Component {
 
     this.state = {
       socketOpen: false,
-      virtualBgIsActive: false,
-      cameraTrack: null,
+      virtualBgIsActive: [],
+      cameraTrack: [],
+      cameraProfiles: [],
+      virtualCanvasRefs: [],
     };
 
     this.info = VideoService.getInfo();
@@ -438,7 +440,7 @@ class VideoProvider extends Component {
 
     this.destroyWebRTCPeer(stream);
     if (isLocal) {
-      this.destroyVirtualBackgroundStream(true);
+      this.destroyVirtualBackgroundStream(true, stream);
     }
 
   }
@@ -465,6 +467,7 @@ class VideoProvider extends Component {
   async createWebRTCPeer(stream, isLocal) {
     let iceServers = [];
     const role = VideoService.getRole(isLocal);
+    const { cameraProfiles } = this.state;
 
     // Check if the peer is already being processed
     if (this.webRtcPeers[stream]) {
@@ -505,12 +508,12 @@ class VideoProvider extends Component {
           backgroundFilename: virtualBackgroundInformation.name,
           backgroundType: virtualBackgroundInformation.type,
         }
-        const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, constraints);
+        const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, constraints, stream);
         if (replacement instanceof MediaStream) {
           peerOptions.videoStream = replacement;
         } else {
           this.handleVirtualBackgroundError('do_virtualbg_provider', replacement, 'creating virtual background service instance');
-          this.destroyVirtualBackgroundStream();
+          this.destroyVirtualBackgroundStream(false, stream);
         }
       }
 
@@ -524,6 +527,28 @@ class VideoProvider extends Component {
         WebRtcPeerObj = window.kurentoUtils.WebRtcPeer.WebRtcPeerSendonly;
       } else {
         WebRtcPeerObj = window.kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly;
+      }
+
+      if (isLocal) {
+        // Save camera profiles to prevent camera mixups when enabling/disabling streams
+        let newCameraProfileArr = [];
+        let cameraIndex = -1;
+        if (cameraProfiles.length > 0) {
+          cameraProfiles.forEach((cameraObj, i) => {
+            if (cameraObj.stream === stream) {
+              cameraIndex = i;
+            }
+          });
+        }
+
+        if (cameraIndex < 0) {
+          newCameraProfileArr = cameraProfiles;
+          const newConstraints = Object.assign({}, constraints);
+          newCameraProfileArr.push({stream, constraints: newConstraints});
+          this.setState({
+            cameraProfiles: newCameraProfileArr
+            })
+        }
       }
 
       this.webRtcPeers[stream] = new WebRtcPeerObj(peerOptions, (error) => {
@@ -926,15 +951,17 @@ class VideoProvider extends Component {
         }
       }
 
-      let trackToReplace = null;
+      let trackToReplace = {
+        stream
+      };
       // Replace local track
       this.webRtcPeers[stream].localStream.getVideoTracks().forEach(track => {
         this.webRtcPeers[stream].localStream.removeTrack(track);
-        trackToReplace = track;
+        trackToReplace.track = track;
       });
 
       // Use existing track if given
-      const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, cameraProfile.constraints, trackToReplace);
+      const replacement = await this.createVirtualBackgroundStream(virtualBackgroundParameters, cameraProfile.constraints, stream, trackToReplace);
       this.webRtcPeers[stream].localStream.addTrack(replacement.getTracks()[0]);
       // Replace RTCRtpSender track
       localStreams.forEach(localStream => {
@@ -945,9 +972,13 @@ class VideoProvider extends Component {
       let replacement = null;
 
       // Use existing cameraTrack (if exists)
-      if (cameraTrack != null && cameraTrack instanceof MediaStreamTrack) {
-        replacement = new MediaStream();
-        replacement.addTrack(cameraTrack);
+      if (cameraTrack != null && cameraTrack.length > 0) {
+        cameraTrack.forEach((trackObj, i) => {
+          if (trackObj.stream === stream) {
+            replacement = new MediaStream();
+            replacement.addTrack(trackObj.track);
+          }
+        });
       } else {
         replacement = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -967,7 +998,7 @@ class VideoProvider extends Component {
       localStreams.forEach(localStream => {
         localStream.replaceTrack(replacement.getTracks()[0]);
       });
-      this.destroyVirtualBackgroundStream();
+      this.destroyVirtualBackgroundStream(false, stream);
     }
   }
 
@@ -977,11 +1008,38 @@ class VideoProvider extends Component {
    * @param {Object} constraints
    * @returns {MediaStream}
    */
-  async createVirtualBackgroundStream(parameters, constraints, trackToReplace = null) {
+  async createVirtualBackgroundStream(parameters, constraints, stream, trackToReplace = null) {
+    const { virtualBgIsActive, cameraTrack, cameraProfiles, virtualCanvasRefs } = this.state;
 
-    // Use existing track if given
+    // Use previously saved profiles to prevent camera mixups when enabling/disabling streams
+    let cameraIndex = -1;
+    if (cameraProfiles.length > 0) {
+      cameraProfiles.forEach((cameraObj, i) => {
+        if (cameraObj.stream === stream) {
+          cameraIndex = i;
+        }
+      });
+    }
+
+    if (cameraIndex >= 0) {
+      constraints = cameraProfiles[cameraIndex].constraints;
+    }
+
+    // Use existing track if saved in state
     let tracks = null;
-    if (trackToReplace != null && trackToReplace instanceof MediaStreamTrack) {
+    let newCameraTrackArr = cameraTrack;
+    let trackIndex = -1;
+    if (cameraTrack != null && cameraTrack.length > 0) {
+      cameraTrack.forEach((trackObj, i) => {
+        if (trackObj.stream === stream) {
+          tracks = trackObj.track;
+          trackIndex = i;
+        }
+      });
+    }
+
+    // If state doesn't contain a matching track, save the given "trackToReplace" to use later
+    if (tracks == null && trackToReplace != null && trackToReplace instanceof MediaStreamTrack) {
       tracks = new MediaStream();
       tracks.addTrack(trackToReplace);
     } else {
@@ -993,36 +1051,115 @@ class VideoProvider extends Component {
       });
     }
 
+    if (trackIndex < 0) {
+      newCameraTrackArr.push(
+        {
+          stream,
+          track: tracks.getTracks()[0]
+        }
+      )
+    }
+
+    // Save virtualCanvasRef to call stopEffect() method later
+    let newVirtualCanvasRefsArr = virtualCanvasRefs;
     const replacement = await createVirtualBackgroundService(parameters).then((res) => {
-      this.virtualBackgroundReference = res;
+      let virtualCanvasIndex = -1;
+      if (virtualCanvasRefs != null && virtualCanvasRefs.length > 0) {
+        virtualCanvasRefs.forEach((canvasRef, i) => {
+          if (canvasRef.stream === stream) {
+            virtualCanvasIndex = i;
+          }
+        })
+      }
+
+      if (virtualCanvasIndex < 0) {
+        newVirtualCanvasRefsArr.push({
+          stream,
+          ref: res
+        });
+      }
+
       const effect = res.startEffect(tracks);
       return effect;
     }).catch((error) => {
       return error;
     });
+
+    // Add stream into virtualBgIsActive array. This is necessary to enable/disable the correct stream's virtual background
+    // effect from video-list actions
+    let newVirtualBgIsActiveArr = virtualBgIsActive;
+    let streamIndex = -1;
+    if (newVirtualBgIsActiveArr.length > 0) {
+      newVirtualBgIsActiveArr.forEach((streamId, i) => {
+        if (streamId === stream) {
+          streamIndex = i;
+        }
+      });
+    }
+
+    if (streamIndex < 0) {
+      newVirtualBgIsActiveArr.push(stream)
+    }
+
     this.setState({
-      virtualBgIsActive: true,
-      cameraTrack: tracks.getTracks()[0],
+      virtualBgIsActive: [].concat(newVirtualBgIsActiveArr),
+      cameraTrack: newCameraTrackArr,
+      virtualCanvasRefs: newVirtualCanvasRefsArr
     });
 
     return replacement;
   }
 
-  destroyVirtualBackgroundStream(stopCameraTrack = false) {
-    const { cameraTrack } = this.state;
-    if (this.virtualBackgroundReference != null) {
-      this.virtualBackgroundReference.stopEffect();
-      delete this.virtualBackgroundReference;
+  destroyVirtualBackgroundStream(stopCameraTrack = false, stream) {
+    const { virtualBgIsActive, cameraTrack, virtualCanvasRefs } = this.state;
+    let canvasIndex = -1;
+
+    // Get the previously saved canvas references and call stopEffect()
+    if (virtualCanvasRefs != null && virtualCanvasRefs.length > 0) {
+      virtualCanvasRefs.forEach((canvasRef, i) => {
+        if (canvasRef.stream === stream) {
+          canvasRef.ref.stopEffect();
+          canvasIndex = i;
+        }
+      });
     }
 
-    if (cameraTrack != null && cameraTrack instanceof MediaStreamTrack && stopCameraTrack) {
-      cameraTrack.stop();
-      this.setState({
-        cameraTrack: null
-      })
+    let newVirtualCanvasRefsArr = virtualCanvasRefs;
+    if (canvasIndex >= 0) {
+      newVirtualCanvasRefsArr.splice(canvasIndex, 1);
     }
+
+    // Get previously saved camera tracks and stop them
+    let newCameraTrackArr = cameraTrack;
+    let trackIndex = -1;
+    if (cameraTrack != null && cameraTrack.length > 0 && stopCameraTrack) {
+      cameraTrack.forEach((trackObj, i) => {
+        if (trackObj.stream === stream) {
+          trackObj.track.stop();
+          trackIndex = i;
+        }
+      });
+    }
+
+    if (trackIndex > 0) {
+      newCameraTrackArr.splice(trackIndex, 1);
+    }
+
+
+    // Set virtualBgIsActive flag states
+    let newVirtualBgIsActiveArr = virtualBgIsActive;
+    if (newVirtualBgIsActiveArr.length > 0) {
+      newVirtualBgIsActiveArr.forEach((streamId, i) => {
+        if (streamId === stream) {
+          newVirtualBgIsActiveArr.splice(i, 1);
+        }
+      });
+    }
+
     this.setState({
-      virtualBgIsActive: false,
+      virtualBgIsActive: [].concat(newVirtualBgIsActiveArr),
+      cameraTrack: newCameraTrackArr,
+      virtualCanvasRefs: newVirtualCanvasRefsArr,
     });
   }
 

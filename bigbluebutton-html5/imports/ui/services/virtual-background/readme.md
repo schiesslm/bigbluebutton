@@ -37,7 +37,7 @@ In case you don't have the virtual background settings in your `settings.yml`, a
 
 | Setting | Description | Type |
 | --- | --- | --- |
-| `enabled` | Enables or disabled virtual background feature | `boolean` |
+| `enabled` | Enables or disables virtual background feature | `boolean` |
 | `storedOnBBB` | Determines where the images and thumbnails are stored. If set to true, virtual backgrounds and thumbnails will be fetched from `/resources/images/virtual-backgrounds/`.  | `boolean` |
 | `showThumbnails`| Determines whether to show or hide thumbnails. If set to `false`, a dropdown of `fileNames` will be shown. | `boolean` |
 | `imagesPath` | Location of virtual background images. If `storedOnBBB` is set to false, it is possible to give an external location. **IMPORTANT: File names must be given explicitly under `fileNames` if using non-default images.** | `string` |
@@ -69,7 +69,7 @@ More details:
 
 ## LICENSE
 
-The mdoels vendored here were downloaded early January (they were available as early as the 4th), before Google switched the license away from Apache 2. Thus we understand they are not covered by the new license which according to the [model card](https://github.com/tensorflow/tfjs/files/6466044/Model.Card-Meet.Segmentation.pdf) dates from the 21st of January.
+The models vendored here were downloaded early January (they were available as early as the 4th), before Google switched the license away from Apache 2. Thus we understand they are not covered by the new license which according to the [model card](https://github.com/tensorflow/tfjs/files/6466044/Model.Card-Meet.Segmentation.pdf) dates from the 21st of January.
 
 We are not lawyers so do get legal advise if in doubt.
 

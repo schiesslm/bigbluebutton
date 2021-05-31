@@ -260,7 +260,7 @@ class VideoList extends Component {
 
   handleVirtualBgToggle(stream) {
     const { virtualBgChangeHandler, virtualBgIsActive } = this.props;
-    virtualBgChangeHandler(!virtualBgIsActive, stream);
+    virtualBgChangeHandler(!virtualBgIsActive.includes(stream), stream);
   }
 
   renderNextPageButton() {
@@ -345,7 +345,7 @@ class VideoList extends Component {
       if (currentUserId === userId && !isiOS && VIRTUALBACKGROUNDENABLED) {
         actions.push({
           actionName: 'blurBackground',
-          label: intl.formatMessage(virtualBgIsActive ? intlMessages['toggleVirtualBgOffLabel'] : intlMessages['toggleVirtualBgOnLabel']),
+          label: intl.formatMessage(virtualBgIsActive.includes(stream) ? intlMessages['toggleVirtualBgOffLabel'] : intlMessages['toggleVirtualBgOnLabel']),
           description: 'Blur',
           onClick: () => this.handleVirtualBgToggle(stream)
         })
