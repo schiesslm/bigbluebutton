@@ -979,7 +979,9 @@ class VideoProvider extends Component {
             replacement.addTrack(trackObj.track);
           }
         });
-      } else {
+      }
+
+      if(replacement == null) {
         replacement = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: cameraProfile.constraints,
@@ -1032,17 +1034,25 @@ class VideoProvider extends Component {
     if (cameraTrack != null && cameraTrack.length > 0) {
       cameraTrack.forEach((trackObj, i) => {
         if (trackObj.stream === stream) {
-          tracks = trackObj.track;
+          tracks = new MediaStream();
+          tracks.addTrack(trackObj.track);
           trackIndex = i;
         }
       });
     }
 
     // If state doesn't contain a matching track, save the given "trackToReplace" to use later
-    if (tracks == null && trackToReplace != null && trackToReplace instanceof MediaStreamTrack) {
+    if (
+      tracks == null &&
+      trackToReplace != null &&
+      trackToReplace.track instanceof MediaStreamTrack
+    ) {
       tracks = new MediaStream();
-      tracks.addTrack(trackToReplace);
-    } else {
+      tracks.addTrack(trackToReplace.track);
+    }
+
+    // If tracks are still null, get user media
+    if (tracks == null) {
       tracks = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: constraints,
