@@ -27,7 +27,8 @@ import UploaderContainer from '/imports/ui/components/presentation/presentation-
 import RandomUserSelectContainer from '/imports/ui/components/modal/random-user/container';
 import { withDraggableContext } from '../media/webcam-draggable-overlay/context';
 import NewWebcamContainer from '../webcam/container';
-import PresentationPodsContainer from '../presentation-pod/container';
+import PresentationAreaContainer from '../presentation/presentation-area/container';
+import ScreenshareContainer from '../screenshare/container';
 import { styles } from './styles';
 import {
   LAYOUT_TYPE, DEVICE_TYPE, ACTIONS,
@@ -49,7 +50,6 @@ const MOBILE_MEDIA = 'only screen and (max-width: 40em)';
 const APP_CONFIG = Meteor.settings.public.app;
 const DESKTOP_FONT_SIZE = APP_CONFIG.desktopFontSize;
 const MOBILE_FONT_SIZE = APP_CONFIG.mobileFontSize;
-const ENABLE_NETWORK_MONITORING = Meteor.settings.public.networkMonitoring.enableNetworkMonitoring;
 const OVERRIDE_LOCALE = APP_CONFIG.defaultSettings.application.overrideLocale;
 
 const intlMessages = defineMessages({
@@ -145,8 +145,6 @@ class App extends Component {
       notify,
       intl,
       validIOSVersion,
-      startBandwidthMonitoring,
-      handleNetworkConnection,
     } = this.props;
     const { browserName } = browserInfo;
     const { osName } = deviceInfo;
@@ -176,15 +174,6 @@ class App extends Component {
     window.addEventListener('resize', this.handleWindowResize, false);
     window.ondragover = (e) => { e.preventDefault(); };
     window.ondrop = (e) => { e.preventDefault(); };
-
-    if (ENABLE_NETWORK_MONITORING) {
-      if (navigator.connection) {
-        handleNetworkConnection();
-        navigator.connection.addEventListener('change', handleNetworkConnection);
-      }
-
-      startBandwidthMonitoring();
-    }
 
     if (isMobile()) makeCall('setMobileUser');
 
@@ -253,12 +242,7 @@ class App extends Component {
   }
 
   componentWillUnmount() {
-    const { handleNetworkConnection } = this.props;
     window.removeEventListener('resize', this.handleWindowResize, false);
-    if (navigator.connection) {
-      navigator.connection.addEventListener('change', handleNetworkConnection, false);
-    }
-
     ConnectionStatusService.stopRoundTripTime();
   }
 
@@ -356,6 +340,8 @@ class App extends Component {
     const {
       actionsbar,
       intl,
+      layoutManagerLoaded,
+      actionsBarStyle,
     } = this.props;
 
     if (!actionsbar) return null;
@@ -365,6 +351,19 @@ class App extends Component {
         className={styles.actionsbar}
         aria-label={intl.formatMessage(intlMessages.actionsBarLabel)}
         aria-hidden={this.shouldAriaHide()}
+        style={
+          layoutManagerLoaded === 'new'
+            ? {
+              position: 'absolute',
+              top: actionsBarStyle.top,
+              left: actionsBarStyle.left,
+              height: actionsBarStyle.height,
+              width: actionsBarStyle.width,
+            }
+            : {
+              position: 'relative',
+            }
+        }
       >
         {actionsbar}
       </section>
@@ -419,6 +418,10 @@ class App extends Component {
       layoutManagerLoaded,
       sidebarNavigationIsOpen,
       sidebarContentIsOpen,
+      audioAlertEnabled,
+      pushAlertEnabled,
+      shouldShowPresentation,
+      shouldShowScreenshare,
     } = this.props;
 
     return (
@@ -457,7 +460,13 @@ class App extends Component {
               <ModalContainer />
               <AudioContainer />
               <ToastContainer rtl />
-              <ChatAlertContainer />
+              {(audioAlertEnabled || pushAlertEnabled)
+                && (
+                  <ChatAlertContainer
+                    audioAlertEnabled={audioAlertEnabled}
+                    pushAlertEnabled={pushAlertEnabled}
+                  />
+                )}
               <WaitingNotifierContainer />
               <LockNotifier />
               <StatusNotifier status="raiseHand" />
@@ -481,8 +490,10 @@ class App extends Component {
                 <SidebarNavigationContainer />
                 <SidebarContentContainer />
                 <NewWebcamContainer />
-                <PresentationPodsContainer />
+                {shouldShowPresentation ? <PresentationAreaContainer /> : null}
+                {shouldShowScreenshare ? <ScreenshareContainer /> : null}
                 <ModalContainer />
+                {this.renderActionsBar()}
               </div>
             </>
           )}
