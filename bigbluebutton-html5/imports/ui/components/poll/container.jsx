@@ -39,9 +39,11 @@ export default withTracker(() => {
 
   const pollId = currentSlide ? currentSlide.id : PUBLIC_CHAT_KEY;
 
-  const startPoll = (type, question = '') => makeCall('startPoll', type, pollId, question);
+  const pollTypes = Service.pollTypes;
 
-  const startCustomPoll = (type, question = '', answers) => makeCall('startPoll', type, pollId, question, answers);
+  const startPoll = (type, secretPoll, question = '') => makeCall('startPoll', pollTypes, type, pollId, secretPoll, question);
+
+  const startCustomPoll = (type, secretPoll, question = '', answers) => makeCall('startPoll', pollTypes, type, pollId, secretPoll, question, answers);
 
   const stopPoll = () => makeCall('stopPoll');
 
