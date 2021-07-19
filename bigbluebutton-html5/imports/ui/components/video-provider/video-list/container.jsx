@@ -36,9 +36,5 @@ const VideoListContainer = ({ children, ...props }) => {
 
 export default withTracker((props) => ({
   numberOfPages: VideoService.getNumberOfPages(),
-  currentVideoPageIndex: props.currentVideoPageIndex,
-  currentUserId: Auth.userID,
-  virtualBgChangeHandler: props.virtualBgChangeHandler,
-  virtualBgIsActive: props.virtualBgIsActive,
   ...props,
 }))(VideoListContainer);

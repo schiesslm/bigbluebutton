@@ -1,0 +1,15 @@
+@import "/imports/ui/components/video-preview/styles";
+
+.virtualBackgroundRow {
+  display: flex;
+  justify-content: inherit;
+  width: 100%;
+
+  input {
+    border-radius: 0.3rem;
+  }
+
+  input:disabled {
+    filter: grayscale(100%);
+  }
+}
