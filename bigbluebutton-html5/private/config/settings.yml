@@ -78,6 +78,15 @@ public:
     showAudioFilters: true
     raiseHandActionButton:
       enabled: true
+    # If enabled, before joining microphone the client will perform a trickle
+    # ICE against Kurento and use the information about successfull
+    # candidate-pairs to filter out local candidates in SIP.js's SDP.
+    # Try enabling this setting in scenarios where the listenonly mode works,
+    # but microphone doesn't (for example, when using VPN).
+    # For compatibility check "Browser compatbility" section in:
+    # https://developer.mozilla.org/en-US/docs/Web/API/RTCDtlsTransport/iceTransport
+    # This is an EXPERIMENTAL setting and the default value is false
+    # experimentalUseKmsTrickleIceForMicrophone: false
     defaultSettings:
       application:
         animations: true
@@ -91,7 +100,7 @@ public:
         guestWaitingPushAlerts: true
         paginationEnabled: true
         pushLayoutToEveryone: false
-        selectedLayout: 'legacy'
+        selectedLayout: 'smart'
         # fallbackLocale: if the locale the client is loaded in does not have a
         # translation a string, it will use the translation from the locale
         # specified in fallbackLocale. Note that fallbackLocale should be a
@@ -695,3 +704,4 @@ private:
       version: 10
     - browser: YandexBrowser
       version: 19
+      

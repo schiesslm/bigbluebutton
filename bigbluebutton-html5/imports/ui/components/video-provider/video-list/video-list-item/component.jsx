@@ -17,6 +17,7 @@ import {
   unsubscribeFromStreamStateChange,
 } from '/imports/ui/services/bbb-webrtc-sfu/stream-state-service';
 import deviceInfo from '/imports/utils/deviceInfo';
+import { ACTIONS } from '../../../layout/enums';
 
 const ALLOW_FULLSCREEN = Meteor.settings.public.app.allowFullscreen;
 
@@ -100,7 +101,7 @@ class VideoListItem extends Component {
   }
 
   onFullscreenChange() {
-    const { webcamDraggableDispatch } = this.props;
+    const { webcamDraggableDispatch, newLayoutContextDispatch } = this.props;
     const { isFullscreen } = this.state;
     const serviceIsFullscreen = FullscreenService.isFullScreen(this.videoContainer);
 
@@ -112,6 +113,9 @@ class VideoListItem extends Component {
           value: serviceIsFullscreen,
         },
       );
+      newLayoutContextDispatch({
+        type: ACTIONS.SET_FULLSCREEN_ELEMENT
+      })
     }
   }
 
@@ -146,16 +150,18 @@ class VideoListItem extends Component {
   }
 
   renderFullscreenButton() {
-    const { name } = this.props;
+    const { name, cameraId } = this.props;
     const { isFullscreen } = this.state;
 
     if (!ALLOW_FULLSCREEN) return null;
 
     return (
       <FullscreenButtonContainer
-        data-test="presentationFullscreenButton"
+        data-test="webcamsFullscreenButton"
         fullscreenRef={this.videoContainer}
         elementName={name}
+        elementId={cameraId}
+        elementGroup="webcams"
         isFullscreen={isFullscreen}
         dark
       />
@@ -176,6 +182,8 @@ class VideoListItem extends Component {
       swapLayout,
       mirrored,
       webcamDraggableState,
+      isFullscreenContext,
+      layoutLoaded,
     } = this.props;
     const availableActions = this.getAvailableActions();
     const enableVideoMenu = Meteor.settings.public.kurento.enableVideoMenu || false;
@@ -191,6 +199,7 @@ class VideoListItem extends Component {
         className={cx({
           [styles.content]: true,
           [styles.talking]: voiceUser.talking,
+          [styles.fullscreen]: layoutLoaded === 'new' && isFullscreenContext,
         })}
       >
         {
@@ -225,9 +234,9 @@ class VideoListItem extends Component {
             className={cx({
               [styles.media]: true,
               [styles.cursorGrab]: !webcamDraggableState.dragging
-                && !isFullscreen && !swapLayout,
+                && !isFullscreen && !isFullscreenContext && !swapLayout,
               [styles.cursorGrabbing]: webcamDraggableState.dragging
-                && !isFullscreen && !swapLayout,
+                && !isFullscreen && !isFullscreenContext && !swapLayout,
               [styles.mirroredVideo]: (this.mirrorOwnWebcam && !mirrored)
                 || (!this.mirrorOwnWebcam && mirrored),
               [styles.unhealthyStream]: shouldRenderReconnect,

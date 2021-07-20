@@ -36,6 +36,10 @@ const intlClientErrors = defineMessages({
     id: 'app.video.mediaFlowTimeout1020',
     description: 'Media flow timeout',
   },
+  mediaTimedOutError: {
+    id: 'app.video.mediaTimedOutError',
+    description: 'Media was ejected by the server due to lack of valid media',
+  },
 });
 
 const intlSFUErrors = defineMessages({
@@ -464,6 +468,15 @@ class VideoProvider extends Component {
     }
 
     this.webRtcPeers[stream] = {};
+    const { constraints, bitrate, id: profileId } = VideoService.getCameraProfile();
+    const peerOptions = {
+      mediaConstraints: {
+        audio: false,
+        video: constraints,
+      },
+      onicecandidate: this._getOnIceCandidateCallback(stream, isLocal),
+      videoStream: VideoService.getPreloadedStream(),
+    };
 
     try {
       iceServers = await fetchWebRTCMappedStunTurnServers(this.info.sessionToken);
@@ -480,15 +493,7 @@ class VideoProvider extends Component {
       // Use fallback STUN server
       iceServers = getMappedFallbackStun();
     } finally {
-      const { constraints, bitrate, id: profileId } = VideoService.getCameraProfile();
       this.outboundIceQueues[stream] = [];
-      const peerOptions = {
-        mediaConstraints: {
-          audio: false,
-          video: constraints,
-        },
-        onicecandidate: this._getOnIceCandidateCallback(stream, isLocal),
-      };
 
       if (iceServers.length > 0) {
         peerOptions.configuration = {};
@@ -790,6 +795,7 @@ class VideoProvider extends Component {
   }
 
   handlePlayStop(message) {
+    const { intl } = this.props;
     const { cameraId: stream, role } = message;
 
     logger.info({
@@ -799,6 +805,8 @@ class VideoProvider extends Component {
         role,
       },
     }, `Received request from SFU to stop camera. Role: ${role}`);
+
+    VideoService.notify(intl.formatMessage(intlClientErrors.mediaTimedOutError));
     this.stopWebRTCPeer(stream, false);
   }
 

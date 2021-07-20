@@ -17,11 +17,13 @@ import WhiteboardService from '/imports/ui/components/whiteboard/service';
 const ROLE_VIEWER = Meteor.settings.public.user.role_viewer;
 
 const PresentationContainer = ({ presentationPodIds, mountPresentation, ...props }) => {
+  const fullscreenElementId = 'Presentation';
   const newLayoutContext = useContext(NLayoutContext);
   const { newLayoutContextState, newLayoutContextDispatch } = newLayoutContext;
-  const { input, output, layoutLoaded } = newLayoutContextState;
+  const { output, layoutLoaded, layoutType, fullscreen } = newLayoutContextState;
   const { presentation } = output;
-  const { isFullscreen: fullscreenContext } = input.presentation;
+  const { element } = fullscreen;
+  const fullscreenContext = (element === fullscreenElementId);
   const { layoutSwapped, podId } = props;
 
   const usingUsersContext = useContext(UsersContext);
@@ -41,7 +43,9 @@ const PresentationContainer = ({ presentationPodIds, mountPresentation, ...props
           userIsPresenter: userIsPresenter && !layoutSwapped,
           presentationBounds: presentation,
           layoutLoaded,
+          layoutType,
           fullscreenContext,
+          fullscreenElementId,
         }
         }
       />
